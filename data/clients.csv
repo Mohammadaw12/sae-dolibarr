@@ -1,0 +1,4 @@
+name,address,zip,town,phone,email
+Entreprise Alpha,10 rue de Paris,76000,Rouen,0600000001,alpha@example.com
+Entreprise Beta,20 rue de Lille,59000,Lille,0600000002,beta@example.com
+Entreprise Gamma,30 rue de Caen,14000,Caen,0600000003,gamma@example.com

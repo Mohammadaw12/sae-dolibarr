@@ -1,0 +1,51 @@
+services:
+
+  mariadb:
+    image: mariadb:latest
+    container_name: sae-dolibarr-db
+    restart: unless-stopped
+
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+
+    volumes:
+      - ./volumes/mariadb:/var/lib/mysql
+
+    networks:
+      - dolibarr-network
+
+  dolibarr:
+    image: dolibarr/dolibarr:24.0.1
+    container_name: sae-dolibarr-web
+    restart: unless-stopped
+
+    depends_on:
+      - mariadb
+
+    environment:
+      DOLI_DB_HOST: mariadb
+      DOLI_DB_NAME: ${MYSQL_DATABASE}
+      DOLI_DB_USER: ${MYSQL_USER}
+      DOLI_DB_PASSWORD: ${MYSQL_PASSWORD}
+      DOLI_ADMIN_LOGIN: ${DOLI_ADMIN_LOGIN}
+      DOLI_ADMIN_PASSWORD: ${DOLI_ADMIN_PASSWORD}
+      DOLI_URL_ROOT: ${DOLI_URL_ROOT}
+      DOLI_INSTALL_AUTO: 1
+      DOLI_PROD: 1
+
+    ports:
+      - "8080:80"
+
+    volumes:
+      - ./volumes/dolibarr_documents:/var/www/documents
+      - ./volumes/dolibarr_custom:/var/www/html/custom
+
+    networks:
+      - dolibarr-network
+
+networks:
+  dolibarr-network:
+    driver: bridge
