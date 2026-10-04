@@ -12,6 +12,7 @@ Le projet comprend :
 * l'utilisation d'une base de données MariaDB ;
 * la conteneurisation avec Docker ;
 * l'import automatisé de données depuis des fichiers CSV ;
+* l'utilisation de l'API REST de Dolibarr ;
 * la sauvegarde et la restauration des données ;
 * la documentation et le suivi du projet.
 
@@ -26,7 +27,7 @@ La solution repose sur deux conteneurs Docker :
 * **Dolibarr** : application web ERP/CRM ;
 * **MariaDB** : système de gestion de base de données.
 
-Les données persistantes sont stockées dans le dossier `volumes/`.
+Les données persistantes sont stockées dans les volumes Docker.
 
 ```text
                     Navigateur
@@ -44,286 +45,362 @@ Les données persistantes sont stockées dans le dossier `volumes/`.
               |      MariaDB      |
               |     Container     |
               +-------------------+
-```
 
----
 
-## 3. Prérequis
+
+Pour l'import automatisé :
+
+              Fichier CSV
+                   |
+                   v
+            import csv.sh
+                   |
+                   v
+             API REST
+             Dolibarr
+                   |
+                   v
+              Dolibarr
+                   |
+                   v
+       Tiers : clients / fournisseurs
+3. Prérequis
 
 Pour utiliser le projet, il faut disposer de :
 
-* Docker ;
-* Docker Compose ;
-* Git ;
-* Python 3 ;
-* un environnement Linux ou compatible Bash.
+Docker ;
+Docker Compose ;
+Git ;
+une connexion Internet.
 
----
+Vérifier que Docker est installé :
 
-## 4. Configuration
+docker --version
 
-Le projet utilise un fichier `.env` pour les paramètres sensibles.
+Vérifier que Docker Compose est disponible :
 
-Créer le fichier à partir du modèle :
+docker compose version
 
-```bash
-cp .env.example .env
-```
+Vérifier que Git est installé :
 
-Puis modifier `.env` avec les valeurs adaptées à l'environnement.
+git --version
+4. Récupération du projet
 
-Le fichier `.env` ne doit pas être versionné.
+Cloner le dépôt GitHub :
 
----
+git clone https://github.com/mohammad/sae-dolibarr.git
 
-### Configuration de l'API REST : A faire apres l'installation 
+Entrer dans le projet :
 
-L'import automatisé des clients et fournisseurs utilise l'API REST de Dolibarr.
+cd sae-dolibarr
+5. Installation
 
-### Activation de l'API
+Rendre le script d'installation exécutable :
 
-Après l'installation de Dolibarr :
+chmod +x install.sh
 
-1. Se connecter à Dolibarr avec un compte administrateur.
-2. Aller dans **Configuration → Modules/Applications**.
-3. Rechercher le module **API REST**.
-4. Activer le module.
+Lancer l'installation :
 
-### Création de l'utilisateur d'import
+./install.sh
 
-Créer un utilisateur dédié à l'import des données, par exemple :
+Le script permet de mettre en place automatiquement l'environnement nécessaire au fonctionnement du projet.
 
-```text
-Login : aw
-Nom : aw
+Une fois l'installation terminée, accéder à Dolibarr depuis un navigateur :
 
-
-L'utilisateur doit disposer des droits nécessaires pour consulter et créer les tiers (clients et fournisseurs).
-
-Une clé API doit ensuite être générée pour cet utilisateur.
-
-Configuration de la clé API
-
-La clé API générée doit être renseignée dans le fichier .env :
-
-DOLI_API_KEY=VOTRE_CLE_API
-
-La clé API est une information sensible et ne doit jamais être publiée dans le dépôt Git
-Une fois l'API configurée, l'import peut être lancé avec :
-
-./scripts/import_csv.sh data/clients.csv data/fournisseurs.csv
-
-Le programme tools/import_csv.py utilise cette clé pour communiquer avec l'API REST de Dolibarr et créer les clients et fournisseurs à partir des fichiers CSV.
-
-Documentation officielle de l'API REST :
-
-https://wiki.dolibarr.org/index.php/Module_Web_Services_API_REST_(developer)
-
-
-
-## 5. Installation
-
-L'installation automatisée est réalisée avec :
-
-```bash
-./scripts/install.sh
-```
-
-Le script :
-
-1. vérifie la présence du fichier `.env` ;
-2. vérifie Docker et Docker Compose ;
-3. crée les dossiers nécessaires ;
-4. démarre MariaDB ;
-5. attend que MariaDB soit disponible ;
-6. démarre Dolibarr.
-
-Après installation, Dolibarr est accessible à :
-
-```text
 http://localhost:8080
-```
+6. Première configuration de Dolibarr
 
----
+Lors de la première connexion, terminer la configuration de Dolibarr depuis l'interface web.
 
-## 6. Import des données
+Créer le compte superadmin permettant d'administrer Dolibarr.
 
-Le projet permet d'importer automatiquement des clients et des fournisseurs dans Dolibarr à partir de fichiers CSV.
+Créer également un utilisateur destiné à l'utilisation de l'API.
 
-Des fichiers d'exemple sont fournis dans :
+Le projet utilise principalement la fonctionnalité de gestion des Tiers, correspondant aux clients et fournisseurs.
 
-```text
-data/clients.csv
-data/fournisseurs.csv
-```
+7. Configuration de l'API REST
 
-Ces fichiers servent uniquement à tester et démontrer le fonctionnement de l'import.
+L'import automatisé des fichiers CSV utilise l'API REST de Dolibarr.
 
-### Format des fichiers CSV
+7.1 Activer l'API REST
 
-Les fichiers CSV doivent contenir les colonnes suivantes :
+Dans Dolibarr, accéder à :
 
-```text
-name,address,zip,town,phone,email
-```
+Configuration
+→ Modules/Applications
+→ API REST
 
-Exemple :
+Activer le module permettant l'utilisation de l'API REST.
 
-```csv
-name,address,zip,town,phone,email
-Entreprise ABC,15 rue Victor Hugo,75001,Paris,0102030405,contact@abc.fr
-```
+7.2 Utilisateur API
 
-### Utiliser ses propres fichiers CSV
+Utiliser l'utilisateur créé précédemment pour effectuer les imports.
 
-Il est possible d'utiliser d'autres fichiers CSV sans modifier le programme.
+Cet utilisateur doit disposer des droits nécessaires pour créer et gérer les tiers.
 
-La commande est :
+7.3 Générer la clé API
 
-```bash
-./scripts/import_csv.sh <fichier_clients.csv> <fichier_fournisseurs.csv>
-```
+Depuis la fiche de l'utilisateur :
 
-Exemple :
+Utilisateurs & Groupes
+→ Utilisateur
+→ Modifier / Fiche utilisateur
 
-```bash
-./scripts/import_csv.sh mes_clients.csv mes_fournisseurs.csv
-```
+Générer une clé API.
 
-Le script :
+Cette clé permet au script d'import de s'authentifier auprès de Dolibarr.
 
-1. vérifie la présence des deux fichiers ;
-2. importe le premier fichier comme liste de clients ;
-3. importe le second fichier comme liste de fournisseurs ;
-4. utilise l'API REST de Dolibarr pour créer les tiers ;
-5. vérifie qu'un tiers n'existe pas déjà afin d'éviter les doublons.
+Ne jamais publier une vraie clé API sur GitHub.
 
-Les fichiers CSV utilisés peuvent donc être remplacés par ceux fournis par l'utilisateur, à condition de respecter le format attendu.
+8. Configuration du fichier .env
 
-### Import avec les fichiers d'exemple
+Le projet utilise un fichier .env pour stocker les paramètres nécessaires à l'utilisation de l'API.
 
-L'import peut être lancé avec :
+Si un fichier .env.example est fourni, créer le fichier .env à partir de celui-ci :
 
-```bash
-./scripts/import_csv.sh data/clients.csv data/fournisseurs.csv
-```
+cp .env.example .env
 
-Le programme Python `tools/import_csv.py` assure la communication avec l'API REST de Dolibarr.
+Modifier ensuite le fichier :
 
----
+nano .env
 
-## 7. Sauvegarde
-
-La sauvegarde est réalisée avec :
-
-```bash
-./scripts/backup.sh
-```
-
-Une sauvegarde contient notamment :
-
-* la base MariaDB ;
-* les documents Dolibarr ;
-* les modules personnalisés ;
-* la configuration Docker ;
-* une copie du fichier `.env`.
-
-Les sauvegardes sont stockées dans :
-
-```text
-backups/
-```
-
-Les sauvegardes ne sont pas versionnées dans Git.
-
----
-
-## 8. Restauration
-
-Pour restaurer une sauvegarde :
-
-```bash
-./scripts/restore.sh backups/AAAA-MM-JJ_HH-MM-SS
-```
+Renseigner les paramètres nécessaires.
 
 Exemple :
 
-```bash
-./scripts/restore.sh backups/2026-10-03_19-42-59
-```
+DOLIBARR_URL=http://localhost:8080
+DOLIBARR_API_KEY=VOTRE_CLE_API
 
-La procédure restaure :
+Remplacer :
 
-* la base de données ;
-* les documents ;
-* les modules personnalisés.
+VOTRE_CLE_API
 
----
+par la clé API générée dans Dolibarr.
 
-## 9. Structure du projet
+Le fichier .env contient des informations sensibles.
 
-```text
+Il ne doit donc pas être publié sur GitHub.
+
+Le fichier .env doit être présent dans .gitignore.
+
+9. Préparation des fichiers CSV
+
+Les fichiers CSV utilisés pour les tests sont placés dans le dossier prévu à cet effet, généralement :
+
+data/
+
+Les fichiers peuvent contenir les informations des tiers, par exemple :
+
+Nom
+Email
+Téléphone
+Adresse
+Code postal
+Ville
+
+Les fichiers CSV utilisés dans le cadre du projet peuvent être des données virtuelles de test.
+
+10. Import automatisé des données
+
+Une fois :
+
+Dolibarr installé ;
+Dolibarr configuré ;
+l'API REST activée ;
+l'utilisateur API créé ;
+la clé API générée ;
+le fichier .env configuré ;
+
+le script d'import peut être lancé.
+
+Rendre le script exécutable si nécessaire :
+
+chmod +x "import csv.sh"
+
+Lancer ensuite :
+
+./import\ csv.sh
+
+Le script utilise l'API REST de Dolibarr pour communiquer avec l'ERP et importer automatiquement les données.
+
+Les données concernent principalement les Tiers :
+
+clients ;
+fournisseurs.
+
+Après l'import, vérifier dans Dolibarr :
+
+Tiers
+→ Liste des tiers
+
+Les données importées doivent apparaître dans la liste.
+
+11. Fonctionnement général
+
+Le fonctionnement du projet est le suivant :
+
++----------------+
+|  Fichier CSV   |
++----------------+
+        |
+        v
++----------------+
+| import csv.sh  |
++----------------+
+        |
+        v
++----------------+
+|  API REST      |
+|   Dolibarr     |
++----------------+
+        |
+        v
++----------------+
+|   Dolibarr     |
++----------------+
+        |
+        v
++----------------+
+| Tiers clients  |
+| fournisseurs   |
++----------------+
+
+L'utilisation de l'API permet d'automatiser l'import des données sans devoir effectuer manuellement chaque import depuis l'interface graphique de Dolibarr.
+
+12. Sauvegarde et restauration
+
+Les données de Dolibarr et MariaDB sont stockées dans des volumes Docker persistants.
+
+Une sauvegarde doit être réalisée afin de pouvoir restaurer les données en cas de problème.
+
+L'objectif est de pouvoir :
+
+sauvegarder les données ;
+supprimer l'environnement ;
+recréer l'environnement ;
+restaurer les données ;
+retrouver un Dolibarr fonctionnel.
+
+Les procédures de sauvegarde et de restauration sont documentées dans le dossier :
+
+docs/
+13. Structure du projet
 sae-dolibarr/
-├── data/
-│   ├── clients.csv
-│   └── fournisseurs.csv
 │
-├── scripts/
-│   ├── install.sh
-│   ├── import_csv.sh
-│   ├── backup.sh
-│   └── restore.sh
+├── data/              # Fichiers CSV de test
+├── docs/              # Documentation complémentaire
+├── sources/           # Scripts et fichiers sources
+├── tests/             # Tests
+├── volumes/           # Données persistantes Docker
 │
-├── tools/
-│   └── import_csv.py
+├── .env.example       # Exemple de configuration
+├── .gitignore         # Fichiers exclus du dépôt Git
 │
-├── docs/
+├── install.sh         # Script principal d'installation
+├── import csv.sh      # Script d'import CSV
 │
-├── docker-compose.yml
-├── .env.example
-├── .gitignore
-├── readme.md
-├── suivi_projet.md
-└── sources.md
-```
+├── readme.md          # Documentation principale
+└── suivi_projet.md    # Journal de bord
+14. Test complet du projet
 
----
+Le projet doit être testé depuis un environnement propre afin de vérifier qu'un nouvel utilisateur peut l'utiliser uniquement avec le dépôt et la documentation.
 
-## 10. Scripts principaux
+Étape 1 : cloner le projet
+git clone https://github.com/mohammad/sae-dolibarr.git
+cd sae-dolibarr
+Étape 2 : vérifier les prérequis
+docker --version
+docker compose version
+git --version
+Étape 3 : lancer l'installation
+chmod +x install.sh
+./install.sh
+Étape 4 : accéder à Dolibarr
 
-| Script          | Fonction                                  |
-| --------------- | ----------------------------------------- |
-| `install.sh`    | Installation et démarrage de la solution  |
-| `import_csv.sh` | Import des clients et fournisseurs        |
-| `backup.sh`     | Sauvegarde de la solution                 |
-| `restore.sh`    | Restauration d'une sauvegarde             |
-| `import_csv.py` | Communication avec l'API REST de Dolibarr |
+Ouvrir :
 
----
+http://localhost:8080
 
-## 11. Sécurité
+Terminer la configuration initiale de Dolibarr.
 
-Les informations sensibles ne doivent pas être présentes dans le dépôt Git.
+Étape 5 : créer l'utilisateur API
 
-Le fichier suivant est donc exclu du versionnement :
+Créer un utilisateur destiné à l'import des données.
 
-```text
-.env
-```
+Étape 6 : activer l'API
 
-Un fichier `.env.example` est fourni afin de présenter les variables nécessaires sans exposer les véritables mots de passe ou clés API.
+Activer le module API REST depuis :
 
-Les sauvegardes contenant potentiellement des informations sensibles doivent également être conservées dans un emplacement sécurisé.
+Configuration
+→ Modules/Applications
+→ API REST
+Étape 7 : générer la clé API
 
----
+Générer une clé API pour l'utilisateur créé.
 
-## 12. Limites du projet
+Étape 8 : configurer .env
 
-Le projet constitue un prototype (POC) réalisé dans le cadre de la SAE.
+Créer le fichier :
 
-Le périmètre fonctionnel est volontairement limité à la gestion des tiers :
+cp .env.example .env
 
-* clients ;
-* fournisseurs.
+Puis renseigner la clé API :
 
-Les autres fonctionnalités de Dolibarr ne font pas partie du périmètre principal du projet.
+nano .env
+
+Exemple :
+
+DOLIBARR_URL=http://localhost:8080
+DOLIBARR_API_KEY=VOTRE_CLE_API
+Étape 9 : lancer l'import
+chmod +x "import csv.sh"
+./import\ csv.sh
+Étape 10 : vérifier les résultats
+
+Dans Dolibarr :
+
+Tiers
+→ Liste des tiers
+
+Vérifier que les données présentes dans les fichiers CSV ont bien été importées.
+
+15. Sécurité
+
+Les informations sensibles ne doivent pas être présentes dans le dépôt GitHub.
+
+Il ne faut notamment pas publier :
+
+les clés API ;
+les mots de passe MariaDB ;
+les mots de passe Dolibarr ;
+les fichiers .env.
+
+Le fichier .env doit être exclu du dépôt grâce au fichier .gitignore.
+
+Un fichier .env.example peut être fourni afin d'indiquer les paramètres nécessaires sans exposer les informations sensibles.
+
+16. Résultat attendu
+
+À la fin de l'installation, l'utilisateur doit pouvoir :
+
+lancer l'environnement Dolibarr ;
+accéder à l'interface web ;
+configurer un utilisateur ;
+activer l'API REST ;
+générer une clé API ;
+configurer le fichier .env ;
+lancer le script import csv.sh ;
+importer automatiquement les données CSV ;
+retrouver les clients et fournisseurs dans Dolibarr ;
+sauvegarder et restaurer les données.
+17. Conclusion
+
+Ce projet permet de mettre en place une solution ERP/CRM Dolibarr hébergée en interne et de simplifier son déploiement.
+
+L'utilisation de Docker permet d'isoler Dolibarr et MariaDB.
+
+Les scripts permettent d'automatiser l'installation et l'import des données.
+
+L'API REST de Dolibarr permet au script d'import de communiquer automatiquement avec l'ERP.
+
+Le projet est ainsi reproductible à partir du dépôt GitHub et peut être testé sur une nouvelle installation en suivant les étapes présentées dans ce README.
