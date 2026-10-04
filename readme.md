@@ -76,6 +76,51 @@ Le fichier `.env` ne doit pas être versionné.
 
 ---
 
+### Configuration de l'API REST : A faire apres l'installation 
+
+L'import automatisé des clients et fournisseurs utilise l'API REST de Dolibarr.
+
+### Activation de l'API
+
+Après l'installation de Dolibarr :
+
+1. Se connecter à Dolibarr avec un compte administrateur.
+2. Aller dans **Configuration → Modules/Applications**.
+3. Rechercher le module **API REST**.
+4. Activer le module.
+
+### Création de l'utilisateur d'import
+
+Créer un utilisateur dédié à l'import des données, par exemple :
+
+```text
+Login : aw
+Nom : aw
+
+
+L'utilisateur doit disposer des droits nécessaires pour consulter et créer les tiers (clients et fournisseurs).
+
+Une clé API doit ensuite être générée pour cet utilisateur.
+
+Configuration de la clé API
+
+La clé API générée doit être renseignée dans le fichier .env :
+
+DOLI_API_KEY=VOTRE_CLE_API
+
+La clé API est une information sensible et ne doit jamais être publiée dans le dépôt Git
+Une fois l'API configurée, l'import peut être lancé avec :
+
+./scripts/import_csv.sh data/clients.csv data/fournisseurs.csv
+
+Le programme tools/import_csv.py utilise cette clé pour communiquer avec l'API REST de Dolibarr et créer les clients et fournisseurs à partir des fichiers CSV.
+
+Documentation officielle de l'API REST :
+
+https://wiki.dolibarr.org/index.php/Module_Web_Services_API_REST_(developer)
+
+
+
 ## 5. Installation
 
 L'installation automatisée est réalisée avec :
