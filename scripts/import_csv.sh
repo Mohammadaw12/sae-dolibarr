@@ -1,74 +1,105 @@
+
 #!/bin/bash
 
-# Arrête le script immédiatement si une commande retourne une erreur
+# Arrête le script si une commande échoue
 set -e
+
+# Affiche les commandes avec des erreurs plus faciles à identifier
+set -o pipefail
 
 # Définit le répertoire racine du projet
 PROJECT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$PROJECT_DIR"
 
-# Vérifie que le fichier .env existe
+echo "======================================"
+echo " IMPORT CSV - DOLIBARR"
+echo "======================================"
+
+# Vérifie la présence du fichier .env
 if [ ! -f ".env" ]; then
-    echo "ERREUR : fichier .env absent."
+    echo "ERREUR : le fichier .env est absent."
     exit 1
 fi
 
-# Vérifie que deux fichiers CSV ont bien été fournis en paramètres
+# Vérifie le nombre de paramètres
 if [ "$#" -ne 2 ]; then
-    echo "Usage : ./scripts/import_csv.sh <clients.csv> <fournisseurs.csv>"
+    echo "Usage :"
+    echo "  ./scripts/import_csv.sh <fichier.csv> <client|supplier>"
+    echo
+    echo "Exemples :"
+    echo "  ./scripts/import_csv.sh data/clients.csv client"
+    echo "  ./scripts/import_csv.sh data/fournisseurs.csv supplier"
     exit 1
 fi
 
-# Récupère le premier paramètre correspondant au fichier des clients
-CLIENTS_FILE="$1"
+# Récupère les paramètres
+CSV_FILE="$1"
+TYPE="$2"
 
-# Récupère le deuxième paramètre correspondant au fichier des fournisseurs
-FOURNISSEURS_FILE="$2"
-
-# Vérifie que le fichier clients existe
-if [ ! -f "$CLIENTS_FILE" ]; then
-    echo "ERREUR : fichier clients absent : $CLIENTS_FILE"
+# Vérifie le type de tiers
+if [ "$TYPE" != "client" ] && [ "$TYPE" != "supplier" ]; then
+    echo "ERREUR : le type doit être client ou supplier."
     exit 1
 fi
 
-# Vérifie que le fichier fournisseurs existe
-if [ ! -f "$FOURNISSEURS_FILE" ]; then
-    echo "ERREUR : fichier fournisseurs absent : $FOURNISSEURS_FILE"
+# Vérifie que le fichier CSV existe
+if [ ! -f "$CSV_FILE" ]; then
+    echo "ERREUR : fichier CSV introuvable : $CSV_FILE"
     exit 1
 fi
 
-# Charge les variables présentes dans le fichier .env
+# Vérifie que Python 3 est installé
+if ! command -v python3 >/dev/null 2>&1; then
+    echo "ERREUR : Python 3 n'est pas installé."
+    exit 1
+fi
+
+# Vérifie que le script Python existe
+if [ ! -f "tools/import_csv.py" ]; then
+    echo "ERREUR : tools/import_csv.py est introuvable."
+    exit 1
+fi
+
+echo "Fichier CSV : $CSV_FILE"
+echo "Type de tiers : $TYPE"
+
+# Charge les variables du fichier .env
+echo "Chargement de la configuration..."
 set -a
 source .env
 set +a
 
-# Rend la clé API Dolibarr disponible pour le script Python
+# Vérifie la présence de la clé API
+if [ -z "${DOLI_API_KEY:-}" ]; then
+    echo "ERREUR : DOLI_API_KEY n'est pas défini dans .env."
+    exit 1
+fi
+
+# Définit l'adresse de Dolibarr
+export DOLI_URL="http://localhost:8080"
 export DOLI_API_KEY
 
-# Définit l'adresse de l'API Dolibarr
-export DOLI_URL="http://localhost:8080"
+# Vérifie que Dolibarr répond
+echo "Vérification de Dolibarr..."
 
-# Affiche le début de l'importation des clients
-echo "======================================"
-echo " IMPORT DES CLIENTS"
-echo "======================================"
+if ! curl -fsS --max-time 5 "$DOLI_URL/" >/dev/null 2>&1; then
+    echo "ERREUR : Dolibarr ne répond pas à $DOLI_URL."
+    echo "Vérifie que les conteneurs Docker sont démarrés."
+    exit 1
+fi
 
-# Lance le script Python pour importer les clients
-# Le paramètre "client" indique qu'il s'agit de tiers de type client
-python3 tools/import_csv.py "$CLIENTS_FILE" client
+# Affiche le type d'importation
+echo
+if [ "$TYPE" = "client" ]; then
+    echo "Début de l'importation des clients..."
+else
+    echo "Début de l'importation des fournisseurs..."
+fi
 
-# Affiche le début de l'importation des fournisseurs
+# Lance le script Python et affiche son résultat
+python3 -u tools/import_csv.py "$CSV_FILE" "$TYPE"
+
 echo
 echo "======================================"
-echo " IMPORT DES FOURNISSEURS"
-echo "======================================"
-
-# Lance le script Python pour importer les fournisseurs
-# Le paramètre "supplier" indique qu'il s'agit de tiers de type fournisseur
-python3 tools/import_csv.py "$FOURNISSEURS_FILE" supplier
-
-# Affiche un message lorsque les deux imports sont terminés
-echo
-echo "======================================"
-echo " IMPORT TERMINE"
+echo " IMPORT TERMINE AVEC SUCCES"
 echo "======================================"
