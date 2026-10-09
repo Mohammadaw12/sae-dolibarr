@@ -1,30 +1,33 @@
 services:
-
   mariadb:
     image: mariadb:latest
     container_name: sae-dolibarr-db
     restart: unless-stopped
-
     environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
-      MYSQL_DATABASE: ${MYSQL_DATABASE}
-      MYSQL_USER: ${MYSQL_USER}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
-
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Définis MYSQL_ROOT_PASSWORD dans .env}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:?Définis MYSQL_DATABASE dans .env}
+      MYSQL_USER: ${MYSQL_USER:?Définis MYSQL_USER dans .env}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?Définis MYSQL_PASSWORD dans .env}
     volumes:
       - ./volumes/mariadb:/var/lib/mysql
-
     networks:
       - dolibarr-network
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - 'mariadb-admin ping -h 127.0.0.1 -uroot -p"$$MYSQL_ROOT_PASSWORD" --silent'
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 20s
 
   dolibarr:
     image: dolibarr/dolibarr:24.0.1
     container_name: sae-dolibarr-web
     restart: unless-stopped
-
     depends_on:
-      - mariadb
-
+      mariadb:
+        condition: service_healthy
     environment:
       DOLI_DB_HOST: mariadb
       DOLI_DB_NAME: ${MYSQL_DATABASE}
@@ -33,16 +36,21 @@ services:
       DOLI_ADMIN_LOGIN: ${DOLI_ADMIN_LOGIN}
       DOLI_ADMIN_PASSWORD: ${DOLI_ADMIN_PASSWORD}
       DOLI_URL_ROOT: ${DOLI_URL_ROOT}
-      DOLI_INSTALL_AUTO: 1
-      DOLI_PROD: 1
+      DOLI_INSTALL_AUTO: "1"
+      DOLI_PROD: "1"
+
+      # Activation automatique des modules au premier démarrage
+      DOLI_ENABLE_MODULES: "Societe,Fournisseur"
+
+      # Configuration initiale de l'entreprise
+      DOLI_COMPANY_NAME: "${DOLI_COMPANY_NAME:-SAE 5.1}"
+      DOLI_COMPANY_COUNTRYCODE: "${DOLI_COMPANY_COUNTRYCODE:-FR}"
 
     ports:
       - "8080:80"
-
     volumes:
       - ./volumes/dolibarr_documents:/var/www/documents
       - ./volumes/dolibarr_custom:/var/www/html/custom
-
     networks:
       - dolibarr-network
 
